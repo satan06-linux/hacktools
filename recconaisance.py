@@ -30,13 +30,13 @@ def scan_ports(target, start_port=1, end_port=1024):
     return open_ports
 
 if __name__ == "__main__":
-    print("Automated Reconnaissance Tool")
+    print("Automated Reconnaissance-Tool")
     
     # Get domain information
-    domain = input("Enter a domain name (e.g., example.com): ")
+    domain = input("Enter a domain name (e.g., example.com or google.com): ")
     domain_info = get_domain_info(domain)
     if domain_info:
-        print("\nDomain Information:")
+        print("\nDomain Information: ")
         print(domain_info)
 
     # Get IP information
